@@ -242,6 +242,7 @@ body[data-l=sheet] .save{border-radius:0}
 #timer button{min-height:42px;border:0;border-radius:12px;padding:0 12px;font:700 13px var(--f);cursor:pointer;background:var(--y);color:var(--on)}
 #timer button.s2{background:transparent;color:var(--bg);border:1px solid currentColor}
 #timer.end{background:var(--y);color:var(--on)}
+.ex,.chart{content-visibility:auto;contain-intrinsic-size:auto 640px}
 </style>
 </head>
 <body data-l="card">
@@ -276,7 +277,8 @@ function idb(){ return new Promise((res,rej)=>{ const r=indexedDB.open("scheda-p
 async function idbGet(k){ const db=await idb(); return new Promise((res,rej)=>{ const q=db.transaction("kv").objectStore("kv").get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); }
 async function idbSet(k,v){ const db=await idb(); return new Promise((res,rej)=>{ const tx=db.transaction("kv","readwrite"); tx.objectStore("kv").put(v,k); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
 async function idbDel(k){ const db=await idb(); return new Promise((res,rej)=>{ const tx=db.transaction("kv","readwrite"); tx.objectStore("kv").delete(k); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
-function useProgram(p){ DAYS=p&&p.days||[]; IMG=p&&p.img||{}; HOW=p&&p.how||{}; META=p&&p.meta||{}; GUIDA=p&&p.guidaHtml||"";
+function toBlobUrls(m){ const o={}; Object.entries(m||{}).forEach(([k,v])=>{ try{ if(typeof v==="string"&&v.startsWith("data:")){ const [h,b]=v.split(","), mt=h.slice(5).split(";")[0], bin=atob(b), u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); o[k]=URL.createObjectURL(new Blob([u],{type:mt})); } else o[k]=v; }catch(e){ o[k]=v; } }); return o; }
+function useProgram(p){ DAYS=p&&p.days||[]; IMG=toBlobUrls(p&&p.img); HOW=p&&p.how||{}; META=p&&p.meta||{}; GUIDA=p&&p.guidaHtml||"";
   document.getElementById("hK").textContent=META.palestra||"Scheda palestra";
   document.getElementById("hT").textContent=META.titolo||"Scheda palestra";
   document.getElementById("hS").textContent=DAYS.length?(META.sottotitolo||""):"Carica il file della scheda per iniziare"; }
@@ -366,7 +368,7 @@ const saveH = d => `<button class="save" id="save">Salva seduta ${d.id}</button>
 
 /* ---------- layout: card / minimal ---------- */
 function cardH(d,e,i){
-  const top = e.img ? `<div class="ph" data-z="${e.img}"><img loading="lazy" src="${IMG[e.img]}" alt="${esc(e.m)}"><div class="no">${numOf(d,i)}</div><div class="mac">${esc(e.m)}</div></div>`
+  const top = e.img ? `<div class="ph" data-z="${e.img}"><img loading="lazy" decoding="async" src="${IMG[e.img]}" alt="${esc(e.m)}"><div class="no">${numOf(d,i)}</div><div class="mac">${esc(e.m)}</div></div>`
                     : `<div class="cbar"><div class="no">${numOf(d,i)}</div><span>Tappetino · corpo libero</span></div>`;
   return `<article class="ex">${top}<div class="bd"><h3>${esc(e.n)}</h3>
    <div class="stats"><div><b>${e.s}</b><span>serie</span></div><div><b>${esc(e.r)}</b><span>ripetizioni</span></div><div><b>${esc(e.rec)}</b><span>recupero</span></div></div>
@@ -386,7 +388,7 @@ function progH(d){
 function rowH(d,e,i){
   if(ui.open[d.id]===undefined) ui.open[d.id]=seqOf(d)[0];
   const o = ui.open[d.id]===i;
-  const th = e.img ? `<img loading="lazy" src="${IMG[e.img]}" alt="">` : `<span class="ic">${numOf(d,i)}</span>`;
+  const th = e.img ? `<img loading="lazy" decoding="async" src="${IMG[e.img]}" alt="">` : `<span class="ic">${numOf(d,i)}</span>`;
   return `<div class="row${o?" open":""}" id="row${i}"><button class="rtop" data-row="${i}" aria-expanded="${o}">${th}<span class="rt"><span class="rn"><span>${numOf(d,i)}</span>${esc(e.n)}</span>
    <span class="rm" style="display:block">${e.s} × ${esc(e.r)} · rec ${esc(e.rec)}${e.core?" · tappetino":""}</span><span class="rtags">${e.mu.map(([n])=>`<i>${esc(n.split(" (")[0])}</i>`).join("")}</span></span><span class="chev">${o?"⌃":"⌄"}</span></button>
    ${o?`<div class="rb">${attH(e)}<p class="note">${esc(e.note)}</p>${howBtn(i)}${setsGrid(d,e,i,true)}</div>`:""}</div>`;
@@ -420,7 +422,7 @@ function rWorkout(d){
 /* ---------- layout: sheet ---------- */
 function rSheet(d){
   const z = `<div class="zt"><span>1</span><span>2</span><span>3</span><span>4</span></div><div class="zb"><span>1</span><span>2</span><span>3</span><span>4</span></div><div class="zl"><span>A</span><span>B</span><span>C</span><span>D</span></div><div class="zr"><span>A</span><span>B</span><span>C</span><span>D</span></div>`;
-  const th = d.ex.filter(e=>e.img).map((e,j)=>`<div data-z="${e.img}"><img loading="lazy" src="${IMG[e.img]}" alt="${esc(e.m)}"><span>${d.ex.indexOf(e)+1}</span></div>`).join("");
+  const th = d.ex.filter(e=>e.img).map((e,j)=>`<div data-z="${e.img}"><img loading="lazy" decoding="async" src="${IMG[e.img]}" alt="${esc(e.m)}"><span>${d.ex.indexOf(e)+1}</span></div>`).join("");
   let rows="";
   seqOf(d).forEach(i=>{ const e=allEx(d)[i], L=lastFor(d.id,i);
     let ins=""; for(let s=0;s<e.s;s++){ const v=dv(d.id,i,s), p=L&&L.sets[s]?L.sets[s]:{};
@@ -442,7 +444,7 @@ function rDash(d){
   const plan=[["L","A"],["M","5k"],["M","B"],["G","–"],["V","C"],["S","12k"],["D","–"]];
   const sets=wk.reduce((a,s)=>a+s.ex.reduce((b,x)=>b+x.filter(y=>y.kg||y.r).length,0),0);
   const main=d.ex[0], S=series(ck(main.n)), lastKg=S.length?S[S.length-1].kg:null;
-  const rail=seqOf(d).map(i=>{ const e=allEx(d)[i]; return `<button data-jump="${i}">${e.img?`<img loading="lazy" src="${IMG[e.img]}" alt="">`:`<span class="ic">${numOf(d,i)}</span>`}<span class="ov"><b>${numOf(d,i)} · ${esc(e.n)}</b><span>${e.s}×${esc(e.r)} · ${esc(e.rec)}</span></span></button>`; }).join("");
+  const rail=seqOf(d).map(i=>{ const e=allEx(d)[i]; return `<button data-jump="${i}">${e.img?`<img loading="lazy" decoding="async" src="${IMG[e.img]}" alt="">`:`<span class="ic">${numOf(d,i)}</span>`}<span class="ov"><b>${numOf(d,i)} · ${esc(e.n)}</b><span>${e.s}×${esc(e.r)} · ${esc(e.rec)}</span></span></button>`; }).join("");
   ui.open[d.id] = ui.open[d.id]===undefined ? -1 : ui.open[d.id];
   let list=""; if(d.core&&d.core.length){ list+=`<p class="sec">Core · tappetino</p>`; d.core.forEach((e,j)=>list+=rowH(d,e,d.ex.length+j)); list+=`<p class="sec">Pesi</p>`; } d.ex.forEach((e,i)=>list+=rowH(d,e,i));
   return `<div class="dayhead"><h2>${esc(d.giorno)} · ${esc(d.titolo)}</h2><p>Settimana in corso</p></div>
@@ -523,7 +525,7 @@ function settingsH(){
    <h4>Layout</h4><div class="lays">${LAYOUTS.map(l=>`<button data-lay="${l.id}" aria-pressed="${l.id===L.id}"><b>${esc(l.n)}${l.id==="card"?" · predefinito":""}</b><span>${esc(l.d)}</span></button>`).join("")}</div>
    <h4>Palette · ${esc(L.n)}</h4><div class="pals">${L.pals.map(([n,p],j)=>`<button data-pal="${j}" aria-pressed="${j===pi}"><span class="sw"><i style="background:${p.bg}"></i><i style="background:${p.cd}"></i><i style="background:${p.y}"></i><i style="background:${p.tx}"></i></span>${esc(n)}</button>`).join("")}</div>
    <p style="margin-top:14px;font-size:12px;color:var(--mu)">I carichi segnati e lo storico sono gli stessi in tutti i layout.</p>
-   <h4>Dati</h4>
+   <h4>Dati</h4><p style="font-size:13px;color:var(--mu);margin:0 0 8px">Scheda caricata: <b style="color:var(--tx)">${esc(META.versione||"versione non indicata")}</b></p>
    <label class="btn2" style="display:inline-flex;align-items:center">Importa file scheda / backup<input type="file" accept=".json,application/json" data-act="file" hidden></label>
    <button class="btn2" data-act="export">Esporta backup completo</button>
    <p style="margin-top:10px;font-size:12px;color:var(--mu)">Importare una nuova scheda sostituisce esercizi e foto; i carichi già salvati restano e si aggiungono quelli del file.</p>
@@ -644,10 +646,10 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
   /* --- entrata dei contenuti a ogni cambio di tab/layout --- */
   const ENTER = ".dayhead,.zones span,.box,.ex,.row,.prog,.sec,.wk>div,.tiles>div,.chart,.rail>button,.card,.ds,.save,.charts h2";
   function enter(){
-    // niente elementi nascosti in attesa dello scroll: tutto anima subito, con ritardo limitato
-    const els = $$(ENTER, $("#view"));
-    animate(els, { opacity:{from:0}, y:{from:28}, scale:{from:.97}, duration:650, delay:(el,i)=>60+Math.min(i,12)*45, ease:"outExpo" });
-    $$(".stats b, .tiles b", $("#view")).forEach(countUp);
+    // solo ciò che è sullo schermo (max 12 elementi), solo opacità + spostamento: niente scale, più leggero
+    const els = $$(ENTER, $("#view")).filter(el=>{ const r=el.getBoundingClientRect(); return r.top < innerHeight && r.bottom > 0; }).slice(0,12);
+    animate(els, { opacity:{from:0}, y:{from:16}, duration:450, delay:stagger(40,{start:40}), ease:"outQuart" });
+    $$(".stats b, .tiles b", $("#view")).filter(el=>el.getBoundingClientRect().top < innerHeight).slice(0,6).forEach(countUp);
     observeCharts();
   }
   function countUp(el){
@@ -683,7 +685,7 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
     if(newBar && oldW!==null && newBar.style.width!==oldW) animate(newBar, { width:{from:oldW}, duration:700, ease:"outExpo" });
     observeCharts();
     if(pending && pending.ck){ const b = document.querySelector(`[data-ck="${pending.ck}"]`);
-      if(b && b.classList.contains("on")){ animate(b, { scale:{from:.3}, rotate:{from:-90}, duration:900, ease:"outElastic(1,.5)" }); }
+      if(b && b.classList.contains("on")){ animate(b, { scale:{from:.5}, duration:500, ease:"outBack(2)" }); }
     }
     if(pending && pending.row!==undefined){ const rb = document.querySelector(`#row${pending.row} .rb`);
       if(rb) animate(rb.children, { opacity:{from:0}, y:{from:-10}, duration:450, delay:stagger(35), ease:"outQuad" }); }
@@ -708,7 +710,7 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
     const pan = $("#shP"), ov = $("#sheet");
     animate(ov, { backgroundColor:{from:"rgba(0,0,0,0)"}, duration:300, ease:"linear" });
     animate(pan, { y:{from:"100%"}, duration:650, ease:"outBack(1.1)" });
-    animate($$("#shP h4, #shP li, #shP p, #shP .lays button, #shP .pals button, #shP .yt a, #shP .warn"),
+    animate($$("#shP h4, #shP li, #shP p, #shP .lays button, #shP .pals button, #shP .yt a, #shP .warn").slice(0,14),
       { opacity:{from:0}, x:{from:-16}, duration:450, delay:stagger(22,{start:180}), ease:"outQuad" });
   };
   const _close = closeSheet;
@@ -734,15 +736,8 @@ document.addEventListener("click",async e=>{ const b=e.target.closest("[data-act
   new MutationObserver(()=>{ const z=$("#zoom"); if(z.classList.contains("on")) animate("#zoom img", { scale:{from:.7}, opacity:{from:0}, rotate:{from:-3}, duration:600, ease:"outBack(1.4)" }); })
     .observe($("#zoom"), { attributes:true, attributeFilter:["class"] });
 
-  /* --- il pulsante Salva "respira" quando hai segnato qualcosa --- */
-  let breath = null;
-  document.getElementById("view").addEventListener("input", ()=>{
-    const s=$("#save"); if(!s || breath) return;
-    const c=getComputedStyle(document.documentElement).getPropertyValue("--y").trim()||"#FFD200";
-    breath = animate(s, { scale:[{to:1.025},{to:1}], duration:1400, loop:true, ease:"inOutSine" });
-    s.style.boxShadow="0 0 0 4px "+c+"33";
-  });
-  document.addEventListener("click", e=>{ if(e.target.closest("#save") && breath){ breath.pause(); breath=null; } }, true);
+  /* --- il pulsante Salva si evidenzia (senza animazioni continue) quando hai segnato qualcosa --- */
+  document.getElementById("view").addEventListener("input", ()=>{ const sv=$("#save"); if(sv && !sv.dataset.hl){ sv.dataset.hl=1; animate(sv,{ scale:[{to:1.04},{to:1}], duration:400, ease:"outQuad" }); } });
 
   intro();
   // la prima render è già avvenuta: anima i contenuti
