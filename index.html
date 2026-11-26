@@ -369,14 +369,14 @@ function lastFor(day, idx){
   for(let i=store.sessions.length-1;i>=0;i--){ const s=store.sessions[i]; if(s.day===day && ((s.alt&&s.alt[idx])||"")===want && s.ex[idx] && s.ex[idx].some(x=>x.kg||x.r)) return {date:s.date, sets:s.ex[idx]}; }
   return null;
 }
-function lastTxt(e,L){ return L ? `Ultima volta (${fmtD(L.date)}): <b>${L.sets.map(x=>e.core?(x.r||"–"):(x.kg||"–")+"×"+(x.r||"–")).join(" · ")}</b>` : (e.core?"Niente segnato ancora":"Nessun carico segnato ancora"); }
+function lastTxt(e,L){ return L ? `Ultima volta (${fmtD(L.date)}): <b>${L.sets.map(x=>e.core?((x.r||"–")+(e.u==="sec"&&x.r?"\"":"")):(x.kg||"–")+"×"+(x.r||"–")).join(" · ")}</b>` : (e.core?"Niente segnato ancora":"Nessun carico segnato ancora"); }
 function setsGrid(d,e,i,check){
   const L=lastFor(d.id,i);
-  let h = e.core ? `<span class="hd">Serie</span><span class="hd" style="grid-column:span 2">Ripetizioni / secondi</span><span></span>` : `<span class="hd">Serie</span><span class="hd">kg</span><span class="hd">Rip.</span><span></span>`;
+  let h = e.core ? `<span class="hd">Serie</span><span class="hd" style="grid-column:span 2">${esc(e.lab||"Ripetizioni")}</span><span></span>` : `<span class="hd">Serie</span><span class="hd">kg</span><span class="hd">Rip.</span><span></span>`;
   for(let s=0;s<e.s;s++){
     const p=L&&L.sets[s]?L.sets[s]:{}, v=dv(d.id,i,s);
     const cb = check ? `<button class="ck${v.done?" on":""}" data-ck="${i}:${s}" aria-label="Serie ${s+1} fatta">✓</button>` : `<span></span>`;
-    h += e.core ? `<label>${s+1}ª</label><input class="v" style="grid-column:span 2" data-e="${i}" data-s="${s}" data-f="r" value="${esc(v.r)}" placeholder="${esc(p.r||e.r)}" aria-label="Serie ${s+1}">${cb}`
+    h += e.core ? `<label>${s+1}ª</label><input class="v" style="grid-column:span 2" inputmode="numeric" data-e="${i}" data-s="${s}" data-f="r" value="${esc(v.r)}" placeholder="${esc(p.r||e.r)}${e.u==="sec"?" sec":""}" aria-label="Serie ${s+1} ${esc((e.lab||"ripetizioni").toLowerCase())}">${cb}`
       : `<label>${s+1}ª</label><input class="v" inputmode="decimal" data-e="${i}" data-s="${s}" data-f="kg" value="${esc(v.kg)}" placeholder="${esc(p.kg||"kg")}" aria-label="Serie ${s+1} kg"><input class="v" inputmode="numeric" data-e="${i}" data-s="${s}" data-f="r" value="${esc(v.r)}" placeholder="${esc(p.r||e.r)}" aria-label="Serie ${s+1} ripetizioni">${cb}`;
   }
   return `<p class="last">${lastTxt(e,L)}</p><div class="sets">${h}</div>`;
@@ -403,7 +403,7 @@ function cardH(d,e,i){
   const top = e.img ? `<div class="ph" data-z="${e.img}"><img loading="lazy" decoding="async" src="${IMG[e.img]}" alt="${esc(e.m)}"><div class="no">${numOf(d,i)}</div><div class="mac">${esc(e.m)}</div></div>`
                     : `<div class="cbar"><div class="no">${numOf(d,i)}</div><span>Tappetino · corpo libero</span></div>`;
   return `<article class="ex">${top}<div class="bd"><h3>${esc(e.n)}</h3>
-   <div class="stats"><div><b>${e.s}</b><span>serie</span></div><div><b>${esc(e.r)}</b><span>ripetizioni</span></div><div><b>${esc(e.rec)}</b><span>recupero</span></div></div>
+   <div class="stats"><div><b>${e.s}</b><span>serie</span></div><div><b>${esc(e.r)}</b><span>${e.core?esc((e.lab||"ripetizioni").toLowerCase()):"ripetizioni"}</span></div><div><b>${esc(e.rec)}</b><span>recupero</span></div></div>
    ${attH(e)}${musH(e)}<p class="note">${esc(e.note)}</p>${howBtn(i)}${altH(e,i)}${setsGrid(d,e,i,false)}</div></article>`;
 }
 function rCard(d){
@@ -459,7 +459,7 @@ function rSheet(d){
   let rows="";
   seqOf(d).forEach(i=>{ const e=eff(d,i), L=lastFor(d.id,i);
     let ins=""; for(let s=0;s<e.s;s++){ const v=dv(d.id,i,s), p=L&&L.sets[s]?L.sets[s]:{};
-      ins += e.core ? `<div><input style="width:100%" data-e="${i}" data-s="${s}" data-f="r" value="${esc(v.r)}" placeholder="${esc(p.r||"rip")}" aria-label="${esc(e.n)} serie ${s+1}"></div>`
+      ins += e.core ? `<div><input style="width:100%" data-e="${i}" data-s="${s}" data-f="r" value="${esc(v.r)}" placeholder="${esc(p.r||(e.u==="sec"?"sec":"rip"))}" aria-label="${esc(e.n)} serie ${s+1}"></div>`
         : `<div><input inputmode="decimal" data-e="${i}" data-s="${s}" data-f="kg" value="${esc(v.kg)}" placeholder="${esc(p.kg||"kg")}" aria-label="${esc(e.n)} serie ${s+1} kg"><input inputmode="numeric" data-e="${i}" data-s="${s}" data-f="r" value="${esc(v.r)}" placeholder="${esc(p.r||"rip")}" aria-label="${esc(e.n)} serie ${s+1} ripetizioni"></div>`; }
     rows += `<tr><td class="c">${numOf(d,i)}</td><td><button class="lk" data-how="${i}">${esc(e.n)}</button><br><small>${esc(e.m)}</small></td><td class="c">${e.s}×${esc(e.r)}</td><td class="c">${esc(e.rec)}</td></tr><tr><td></td><td colspan="3"><div class="dsets">${ins}</div></td></tr>`; });
   const notes = ["Riscaldamento 5-8' bici/ellittica + 1-2 serie di avvicinamento.", d.core&&d.core.length?"Core sul tappetino prima dei pesi (righe C1-C2), senza sfinimento.":"Nessun core oggi: la zona lombare lavora già nel rematore T-bar.", "Sett. 1-2: 3-4 ripetizioni in canna; poi 1-2.", "Cardio finale 25-30' a 135-150 bpm.", "Tocca il nome dell'esercizio per lo svolgimento."];
