@@ -204,6 +204,23 @@ body[data-l=minimal] .box{border-style:solid;border-color:var(--bd)}
 body[data-l=sheet] .ex,body[data-l=sheet] .card,body[data-l=sheet] .chart,body[data-l=sheet] nav button{border-radius:0;border-color:var(--tx)}
 body[data-l=sheet] .box{border-radius:0;border-style:solid;border-color:var(--tx)}
 body[data-l=sheet] .save{border-radius:0}
+.order{margin:10px 0 0!important;font-size:12px!important;color:var(--mu)}
+.altbtn{display:flex;align-items:center;justify-content:center;width:100%;min-height:42px;margin:-4px 0 12px;border:1px dashed var(--bd);border-radius:12px;background:transparent;color:var(--mu);font:600 13px var(--f);cursor:pointer}
+.altnote{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-4px 0 8px;padding:8px 10px;border-radius:10px;background:var(--yd);color:var(--yt);font-size:12.5px}
+.altnote button{flex:none;border:0;background:transparent;color:var(--yt);font:700 12px var(--f);text-decoration:underline;cursor:pointer;min-height:32px}
+.altitem{display:flex;gap:12px;padding:10px;border:1px solid var(--bd);border-radius:14px;margin:0 0 10px;background:var(--cd2)}
+.altitem.on{border-color:var(--y)}
+.altitem img{width:96px;height:96px;object-fit:cover;border-radius:10px;flex:none}
+.altitem .ai{flex:1;min-width:0}
+.altitem b{display:block;font-size:15px}
+.altitem small{display:block;font-size:12px;color:var(--mu);margin:2px 0 6px}
+.altitem p{font-size:13px!important;margin:0 0 4px!important}
+.altitem .aa{color:var(--mu)}
+.abtn{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.abtn button{min-height:36px;border-radius:10px;padding:0 12px;font:600 12.5px var(--f);cursor:pointer}
+.abtn .use{background:var(--y);color:var(--on);border:0}
+.abtn .ghost{background:transparent;color:var(--tx);border:1px solid var(--bd)}
+.abtn .inuse{display:inline-flex;align-items:center;min-height:36px;padding:0 10px;font-size:12px;font-weight:700;color:var(--y)}
 /* overlays */
 #zoom{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;place-items:center;z-index:40;cursor:zoom-out;padding:16px}
 #zoom img{max-width:100%;max-height:100%;border-radius:12px}
@@ -270,7 +287,7 @@ body[data-l=sheet] .save{border-radius:0}
 
 </script>
 <script>
-let DAYS = [], IMG = {}, HOW = {}, META = {}, GUIDA = "";
+let DAYS = [], IMG = {}, HOW = {}, META = {}, GUIDA = "", ALTS = {};
 const KEY = "sp_store", SKEY = "sp_prefs";
 /* ---------- IndexedDB: la scheda (con le foto) è grande, va in IndexedDB ---------- */
 function idb(){ return new Promise((res,rej)=>{ const r=indexedDB.open("scheda-palestra",1); r.onupgradeneeded=()=>r.result.createObjectStore("kv"); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
@@ -278,7 +295,7 @@ async function idbGet(k){ const db=await idb(); return new Promise((res,rej)=>{ 
 async function idbSet(k,v){ const db=await idb(); return new Promise((res,rej)=>{ const tx=db.transaction("kv","readwrite"); tx.objectStore("kv").put(v,k); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
 async function idbDel(k){ const db=await idb(); return new Promise((res,rej)=>{ const tx=db.transaction("kv","readwrite"); tx.objectStore("kv").delete(k); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
 function toBlobUrls(m){ const o={}; Object.entries(m||{}).forEach(([k,v])=>{ try{ if(typeof v==="string"&&v.startsWith("data:")){ const [h,b]=v.split(","), mt=h.slice(5).split(";")[0], bin=atob(b), u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); o[k]=URL.createObjectURL(new Blob([u],{type:mt})); } else o[k]=v; }catch(e){ o[k]=v; } }); return o; }
-function useProgram(p){ DAYS=p&&p.days||[]; IMG=toBlobUrls(p&&p.img); HOW=p&&p.how||{}; META=p&&p.meta||{}; GUIDA=p&&p.guidaHtml||"";
+function useProgram(p){ DAYS=p&&p.days||[]; IMG=toBlobUrls(p&&p.img); HOW=p&&p.how||{}; ALTS=p&&p.alts||{}; META=p&&p.meta||{}; GUIDA=p&&p.guidaHtml||"";
   document.getElementById("hK").textContent=META.palestra||"Scheda palestra";
   document.getElementById("hT").textContent=META.titolo||"Scheda palestra";
   document.getElementById("hS").textContent=DAYS.length?(META.sottotitolo||""):"Carica il file della scheda per iniziare"; }
@@ -314,6 +331,16 @@ function persist(){ try{ localStorage.setItem(KEY, JSON.stringify(store)); retur
 function savePrefs(){ try{ localStorage.setItem(SKEY, JSON.stringify(prefs)); }catch(e){} }
 const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const allEx = d => d.ex.concat(d.core||[]);
+function altSel(day,i){ const d=store.draft[day]; return d&&d.alt&&d.alt[i]||""; }
+function setAlt(day,i,a){ const D=store.draft[day]=store.draft[day]||{}; D.alt=D.alt||{}; if(a) D.alt[i]=a; else delete D.alt[i]; persist(); }
+function eff(d,i){ const b=allEx(d)[i]; const a=altSel(d.id,i); if(!a||!ALTS[a]) return b; return Object.assign({},b,ALTS[a],{altId:a,mainN:b.n,alts:b.alts}); }
+function exName(s,d,i){ const a=s.alt&&s.alt[i]; return a&&ALTS[a]?ALTS[a].n:(allEx(d)[i]||{}).n; }
+/* migrazione: sedute salvate prima delle alternative (v1) */
+(function(){ let ch=false; (store.sessions||[]).forEach(s=>{ if(s.v>=2) return; ch=true; s.alt=s.alt||{};
+  if(s.day==="A"){ s.alt[1]="croci_cavi"; s.alt[6]="pushdown"; }
+  if(s.day==="B"){ s.alt[6]="face_pull"; }
+  if(s.day==="C" && Array.isArray(s.ex) && s.ex.length===9){ s.ex=[s.ex[0],s.ex[1],s.ex[2],s.ex[3],s.ex[4],s.ex[5],[],s.ex[6],s.ex[7],s.ex[8]]; }
+  s.v=2; }); if(ch) try{ localStorage.setItem(KEY, JSON.stringify(store)); }catch(e){} })();
 const seqOf = d => (d.core||[]).map((e,j)=>d.ex.length+j).concat(d.ex.map((e,i)=>i));
 const numOf = (d,i) => i>=d.ex.length ? "C"+(i-d.ex.length+1) : String(i+1);
 const ck = n => n.replace(/ \(volume\)$/,"");
@@ -338,7 +365,8 @@ function applyTheme(){
 function dv(day,i,s){ const d=store.draft[day]; return d&&d[i]&&d[i][s] ? d[i][s] : {}; }
 function setDv(day,i,s,f,v){ const D=store.draft[day]=store.draft[day]||{}; const E=D[i]=D[i]||{}; const S=E[s]=E[s]||{}; S[f]=v; persist(); }
 function lastFor(day, idx){
-  for(let i=store.sessions.length-1;i>=0;i--){ const s=store.sessions[i]; if(s.day===day && s.ex[idx] && s.ex[idx].some(x=>x.kg||x.r)) return {date:s.date, sets:s.ex[idx]}; }
+  const want=altSel(day,idx);
+  for(let i=store.sessions.length-1;i>=0;i--){ const s=store.sessions[i]; if(s.day===day && ((s.alt&&s.alt[idx])||"")===want && s.ex[idx] && s.ex[idx].some(x=>x.kg||x.r)) return {date:s.date, sets:s.ex[idx]}; }
   return null;
 }
 function lastTxt(e,L){ return L ? `Ultima volta (${fmtD(L.date)}): <b>${L.sets.map(x=>e.core?(x.r||"–"):(x.kg||"–")+"×"+(x.r||"–")).join(" · ")}</b>` : (e.core?"Niente segnato ancora":"Nessun carico segnato ancora"); }
@@ -353,6 +381,9 @@ function setsGrid(d,e,i,check){
   }
   return `<p class="last">${lastTxt(e,L)}</p><div class="sets">${h}</div>`;
 }
+const altH = (e,i) => !e.alts||!e.alts.length ? "" : (e.altId
+  ? `<div class="altnote"><span>Alternativa al posto di <b>${esc(e.mainN)}</b></span><button data-alt="${i}:">Torna all'originale</button></div><button class="altbtn" data-alts="${i}">Altre alternative</button>`
+  : `<button class="altbtn" data-alts="${i}">Occupato? Alternative</button>`);
 const howBtn = i => `<button class="howbtn" data-how="${i}">Svolgimento <span>›</span></button>`;
 const musH = e => `<div class="mus">${e.mu.map(([n,z])=>`<span>${esc(n)}<i>${esc(z)}</i></span>`).join("")}</div>`;
 const attH = e => e.att ? `<p class="att"><b>Attrezzo / presa</b>${esc(e.att)}</p>` : "";
@@ -360,7 +391,7 @@ function zonesH(d){
   const zones={}; allEx(d).forEach(e=>e.mu.forEach(([n,z])=>{ (zones[z]=zones[z]||new Set()).add(n.split(" (")[0]); }));
   return `<div class="zones">${Object.entries(zones).map(([z,s])=>`<span><b>${esc(z)}</b> ${esc([...s].join(", "))}</span>`).join("")}</div>`;
 }
-const headH = d => `<div class="dayhead"><h2>${esc(d.giorno)} · ${esc(d.titolo)}</h2><p>${esc(d.sub)}</p>${zonesH(d)}</div>`;
+const headH = d => `<div class="dayhead"><h2>${esc(d.giorno)} · ${esc(d.titolo)}</h2><p>${esc(d.sub)}</p>${zonesH(d)}<p class="order">I primi 2 esercizi con i pesi in ordine, gli altri nell'ordine che trovi libero. Se una macchina è occupata: «Occupato? Alternative».</p></div>`;
 const warmH = `<div class="box"><h3>Riscaldamento · 5-8 min</h3><p>Bici o ellittica leggera. Prima del primo esercizio fai anche 1-2 serie leggere di avvicinamento.</p></div>`;
 const coreH = `<div class="box"><h3>Core · tappetino · 6-8 min</h3><p>Subito dopo il riscaldamento, prima dei pesi. Alterna i due esercizi per 3 giri. <b>Senza arrivare allo sfinimento.</b></p></div>`;
 const cardioH = `<div class="box"><h3>Cardio finale · 25-30 min</h3><p>Tapis roulant, bici o ellittica a ritmo in cui riesci a parlare: <b>135-150 bpm</b>.</p></div>`;
@@ -368,15 +399,16 @@ const saveH = d => `<button class="save" id="save">Salva seduta ${d.id}</button>
 
 /* ---------- layout: card / minimal ---------- */
 function cardH(d,e,i){
+  e=eff(d,i);
   const top = e.img ? `<div class="ph" data-z="${e.img}"><img loading="lazy" decoding="async" src="${IMG[e.img]}" alt="${esc(e.m)}"><div class="no">${numOf(d,i)}</div><div class="mac">${esc(e.m)}</div></div>`
                     : `<div class="cbar"><div class="no">${numOf(d,i)}</div><span>Tappetino · corpo libero</span></div>`;
   return `<article class="ex">${top}<div class="bd"><h3>${esc(e.n)}</h3>
    <div class="stats"><div><b>${e.s}</b><span>serie</span></div><div><b>${esc(e.r)}</b><span>ripetizioni</span></div><div><b>${esc(e.rec)}</b><span>recupero</span></div></div>
-   ${attH(e)}${musH(e)}<p class="note">${esc(e.note)}</p>${howBtn(i)}${setsGrid(d,e,i,false)}</div></article>`;
+   ${attH(e)}${musH(e)}<p class="note">${esc(e.note)}</p>${howBtn(i)}${altH(e,i)}${setsGrid(d,e,i,false)}</div></article>`;
 }
 function rCard(d){
   let h = headH(d)+warmH;
-  if(d.core&&d.core.length){ h+=coreH; d.core.forEach((e,j)=>h+=cardH(d,e,d.ex.length+j)); h+=`<div class="box"><h3>Pesi</h3><p>Ora parti con gli esercizi della scheda.</p></div>`; }
+  if(d.core&&d.core.length){ h+=coreH; d.core.forEach((e,j)=>h+=cardH(d,e,d.ex.length+j)); h+=`<div class="box"><h3>Pesi</h3><p>I primi 2 in ordine, gli altri nell'ordine che trovi libero.</p></div>`; }
   d.ex.forEach((e,i)=>h+=cardH(d,e,i));
   return h+cardioH+saveH(d);
 }
@@ -386,12 +418,13 @@ function progH(d){
   return `<div class="prog">Seduta in corso · ${dn} serie fatte su ${tot}<div class="bar"><i style="width:${tot?dn/tot*100:0}%"></i></div></div>`;
 }
 function rowH(d,e,i){
+  e=eff(d,i);
   if(ui.open[d.id]===undefined) ui.open[d.id]=seqOf(d)[0];
   const o = ui.open[d.id]===i;
   const th = e.img ? `<img loading="lazy" decoding="async" src="${IMG[e.img]}" alt="">` : `<span class="ic">${numOf(d,i)}</span>`;
   return `<div class="row${o?" open":""}" id="row${i}"><button class="rtop" data-row="${i}" aria-expanded="${o}">${th}<span class="rt"><span class="rn"><span>${numOf(d,i)}</span>${esc(e.n)}</span>
    <span class="rm" style="display:block">${e.s} × ${esc(e.r)} · rec ${esc(e.rec)}${e.core?" · tappetino":""}</span><span class="rtags">${e.mu.map(([n])=>`<i>${esc(n.split(" (")[0])}</i>`).join("")}</span></span><span class="chev">${o?"⌃":"⌄"}</span></button>
-   ${o?`<div class="rb">${attH(e)}<p class="note">${esc(e.note)}</p>${howBtn(i)}${setsGrid(d,e,i,true)}</div>`:""}</div>`;
+   ${o?`<div class="rb">${attH(e)}<p class="note">${esc(e.note)}</p>${howBtn(i)}${altH(e,i)}${setsGrid(d,e,i,true)}</div>`:""}</div>`;
 }
 function rList(d){
   let h = headH(d)+progH(d)+warmH;
@@ -424,7 +457,7 @@ function rSheet(d){
   const z = `<div class="zt"><span>1</span><span>2</span><span>3</span><span>4</span></div><div class="zb"><span>1</span><span>2</span><span>3</span><span>4</span></div><div class="zl"><span>A</span><span>B</span><span>C</span><span>D</span></div><div class="zr"><span>A</span><span>B</span><span>C</span><span>D</span></div>`;
   const th = d.ex.filter(e=>e.img).map((e,j)=>`<div data-z="${e.img}"><img loading="lazy" decoding="async" src="${IMG[e.img]}" alt="${esc(e.m)}"><span>${d.ex.indexOf(e)+1}</span></div>`).join("");
   let rows="";
-  seqOf(d).forEach(i=>{ const e=allEx(d)[i], L=lastFor(d.id,i);
+  seqOf(d).forEach(i=>{ const e=eff(d,i), L=lastFor(d.id,i);
     let ins=""; for(let s=0;s<e.s;s++){ const v=dv(d.id,i,s), p=L&&L.sets[s]?L.sets[s]:{};
       ins += e.core ? `<div><input style="width:100%" data-e="${i}" data-s="${s}" data-f="r" value="${esc(v.r)}" placeholder="${esc(p.r||"rip")}" aria-label="${esc(e.n)} serie ${s+1}"></div>`
         : `<div><input inputmode="decimal" data-e="${i}" data-s="${s}" data-f="kg" value="${esc(v.kg)}" placeholder="${esc(p.kg||"kg")}" aria-label="${esc(e.n)} serie ${s+1} kg"><input inputmode="numeric" data-e="${i}" data-s="${s}" data-f="r" value="${esc(v.r)}" placeholder="${esc(p.r||"rip")}" aria-label="${esc(e.n)} serie ${s+1} ripetizioni"></div>`; }
@@ -444,7 +477,7 @@ function rDash(d){
   const plan=[["L","A"],["M","5k"],["M","B"],["G","–"],["V","C"],["S","12k"],["D","–"]];
   const sets=wk.reduce((a,s)=>a+s.ex.reduce((b,x)=>b+x.filter(y=>y.kg||y.r).length,0),0);
   const main=d.ex[0], S=series(ck(main.n)), lastKg=S.length?S[S.length-1].kg:null;
-  const rail=seqOf(d).map(i=>{ const e=allEx(d)[i]; return `<button data-jump="${i}">${e.img?`<img loading="lazy" decoding="async" src="${IMG[e.img]}" alt="">`:`<span class="ic">${numOf(d,i)}</span>`}<span class="ov"><b>${numOf(d,i)} · ${esc(e.n)}</b><span>${e.s}×${esc(e.r)} · ${esc(e.rec)}</span></span></button>`; }).join("");
+  const rail=seqOf(d).map(i=>{ const e=eff(d,i); return `<button data-jump="${i}">${e.img?`<img loading="lazy" decoding="async" src="${IMG[e.img]}" alt="">`:`<span class="ic">${numOf(d,i)}</span>`}<span class="ov"><b>${numOf(d,i)} · ${esc(e.n)}</b><span>${e.s}×${esc(e.r)} · ${esc(e.rec)}</span></span></button>`; }).join("");
   ui.open[d.id] = ui.open[d.id]===undefined ? -1 : ui.open[d.id];
   let list=""; if(d.core&&d.core.length){ list+=`<p class="sec">Core · tappetino</p>`; d.core.forEach((e,j)=>list+=rowH(d,e,d.ex.length+j)); list+=`<p class="sec">Pesi</p>`; } d.ex.forEach((e,i)=>list+=rowH(d,e,i));
   return `<div class="dayhead"><h2>${esc(d.giorno)} · ${esc(d.titolo)}</h2><p>Settimana in corso</p></div>
@@ -457,7 +490,7 @@ function rDash(d){
 function series(key){
   const out=[];
   store.sessions.slice().sort((a,b)=>a.date<b.date?-1:1).forEach(s=>{ const d=DAYS.find(x=>x.id===s.day); if(!d) return;
-    allEx(d).forEach((e,i)=>{ if(e.core||ck(e.n)!==key) return; const v=(s.ex[i]||[]).map(x=>({kg:parseFloat(String(x.kg).replace(",",".")),r:x.r})).filter(x=>x.kg>0);
+    allEx(d).forEach((e,i)=>{ if(e.core||ck(exName(s,d,i))!==key) return; const v=(s.ex[i]||[]).map(x=>({kg:parseFloat(String(x.kg).replace(",",".")),r:x.r})).filter(x=>x.kg>0);
       if(v.length){ const m=v.reduce((a,b)=>b.kg>a.kg?b:a); out.push({date:s.date,kg:m.kg,r:m.r,day:s.day}); } }); });
   return out;
 }
@@ -491,11 +524,11 @@ function renderLog(){
   let h=`<div class="dayhead"><h2>Storico</h2><p>Le sedute salvate restano su questo telefono, in questo browser.</p></div><div class="card hist">`;
   if(!ss.length) h+=`<p>Nessuna seduta salvata. Segna i carichi in A, B o C e premi “Salva seduta”.</p>`;
   ss.forEach(s=>{ const d=DAYS.find(x=>x.id===s.day); if(!d) return;
-    const body=allEx(d).map((e,i)=>{ const v=(s.ex[i]||[]).filter(x=>x.kg||x.r); return v.length? e.n+": "+v.map(x=>e.core?(x.r||"–"):(x.kg||"–")+"kg×"+(x.r||"–")).join(" · "):null; }).filter(Boolean).join("\n");
+    const body=allEx(d).map((e,i)=>{ const v=(s.ex[i]||[]).filter(x=>x.kg||x.r); return v.length? exName(s,d,i)+": "+v.map(x=>e.core?(x.r||"–"):(x.kg||"–")+"kg×"+(x.r||"–")).join(" · "):null; }).filter(Boolean).join("\n");
     h+=`<details><summary>${fmtD(s.date,{weekday:"short",day:"numeric",month:"short",year:"numeric"})} · Giorno ${s.day}</summary><pre>${esc(body||"(vuota)")}</pre></details>`; });
   h+=`</div><div class="card"><h3>Backup</h3><p>Salva ogni tanto il backup completo (scheda + carichi) e tienilo sul telefono o nel cloud: serve se cambi telefono o se il browser cancella i dati.</p>
    <button class="btn2" data-act="export">Esporta backup (file .json)</button><button class="btn2" id="del">Cancella l'ultima seduta</button><div class="msg" id="msg"></div></div>`;
-  const keys=[...new Set(DAYS.flatMap(d=>d.ex.map(e=>ck(e.n))))];
+  const keys=[...new Set(DAYS.flatMap(d=>d.ex.map(e=>ck(e.n))).concat(store.sessions.flatMap(s=>Object.values(s.alt||{}).map(a=>ALTS[a]&&ck(ALTS[a].n)).filter(Boolean))))];
   return h+chartsH(keys,"Andamento carichi · tutti gli attrezzi");
 }
 /* ---------- render ---------- */
@@ -512,7 +545,8 @@ function render(keepScroll){
   document.getElementById("tabs").style.display=""; renderTabs();
   const v=document.getElementById("view"), d=DAYS.find(x=>x.id===cur);
   if(d){ const L=prefs.layout; const body = L==="list"?rList(d): L==="sheet"?rSheet(d): L==="dash"?rDash(d): rCard(d);
-    const keys=[...new Set(d.ex.map(e=>ck(e.n)))]; v.innerHTML = body + chartsH(keys); }
+    const used=store.sessions.filter(s=>s.day===d.id).flatMap(s=>Object.values(s.alt||{}).map(a=>ALTS[a]&&ck(ALTS[a].n)).filter(Boolean));
+    const keys=[...new Set(d.ex.map(e=>ck(e.n)).concat(used))]; v.innerHTML = body + chartsH(keys); }
   else v.innerHTML = cur==="info"?renderInfo():renderLog();
   if(keepScroll) window.scrollTo(0,y); else window.scrollTo(0,0);
 }
@@ -531,6 +565,14 @@ function settingsH(){
    <p style="margin-top:10px;font-size:12px;color:var(--mu)">Importare una nuova scheda sostituisce esercizi e foto; i carichi già salvati restano e si aggiungono quelli del file.</p>
    <textarea id="bk" placeholder="Oppure incolla qui il testo di un backup"></textarea><button class="btn2" data-act="paste">Importa dal testo</button>
    <button class="btn2" data-act="wipe" style="border-color:#c0392b;color:#e5675a">Cancella tutti i dati</button><div class="msg" id="smsg"></div>`;
+}
+function openAlts(d,i){
+  const b=allEx(d)[i], selA=altSel(d.id,i);
+  const item=(o,id)=>{ const on=(id||"")===selA; return `<div class="altitem${on?" on":""}">${o.img&&IMG[o.img]?`<img src="${IMG[o.img]}" alt="">`:""}<div class="ai"><b>${esc(o.n)}</b><small>${esc(o.m)}</small><p>${esc(o.note||"")}</p><p class="aa">${esc(o.att||"")}</p>
+    <div class="abtn">${on?`<span class="inuse">In uso</span>`:`<button class="use" data-alt="${i}:${id||""}">${id?"Usa questa":"Torna all'originale"}</button>`}<button class="ghost" data-althow="${i}:${id||""}">Svolgimento</button></div></div></div>`; };
+  openSheet(`<div class="sbar"><h3 id="shT">Alternative<small>Al posto di: ${esc(b.n)} · ${b.s} × ${esc(b.r)} · recupero ${esc(b.rec)}</small></h3><button class="x" id="shX" aria-label="Chiudi">✕</button></div>
+   <p class="ytn" style="margin-top:12px">Stesse serie, ripetizioni e recupero. Il carico viene salvato sull'attrezzo che usi davvero.</p>
+   <h4>Originale</h4>${item(b,"")}<h4>Alternative</h4>${(b.alts||[]).map(a=>ALTS[a]?item(ALTS[a],a):"").join("")}`);
 }
 function openHow(e){
   const H=HOW[e.n]; if(!H) return; const li=a=>a.map(x=>`<li>${esc(x)}</li>`).join("");
@@ -552,6 +594,8 @@ window.addEventListener("hashchange",()=>{ const h=location.hash.slice(1); if(TA
 document.getElementById("gear").addEventListener("click",()=>openSheet(settingsH()));
 document.getElementById("sheet").addEventListener("click",ev=>{
   if(ev.target.id==="sheet"||ev.target.closest("#shX")) return closeSheet();
+  const ab=ev.target.closest("[data-alt]"); if(ab){ const [i,a]=ab.dataset.alt.split(":"); setAlt(cur,+i,a); closeSheet(); render(true); return; }
+  const hw=ev.target.closest("[data-althow]"); if(hw){ const [i,a]=hw.dataset.althow.split(":"); const d=DAYS.find(x=>x.id===cur); const b=allEx(d)[+i]; openHow(a?Object.assign({},b,ALTS[a]):b); return; }
   const l=ev.target.closest("[data-lay]"); if(l){ prefs.layout=l.dataset.lay; savePrefs(); applyTheme(); render(); document.getElementById("shP").innerHTML=settingsH(); return; }
   const p=ev.target.closest("[data-pal]"); if(p){ prefs.pal[prefs.layout]=+p.dataset.pal; savePrefs(); applyTheme(); render(true); document.getElementById("shP").innerHTML=settingsH(); }
 });
@@ -564,7 +608,9 @@ V.addEventListener("click",e=>{
   const d=DAYS.find(x=>x.id===cur);
   const msg=t=>{ const m=document.getElementById("msg"); if(m){ m.textContent=t; setTimeout(()=>{ if(m) m.textContent=""; },3500);} };
   const hit=e.target.closest(".hit"); if(hit){ const t=document.getElementById(hit.dataset.c); if(t) t.textContent=hit.dataset.t; return; }
-  const hb=e.target.closest("[data-how]"); if(hb){ openHow(allEx(d)[+hb.dataset.how]); return; }
+  const al=e.target.closest("[data-alts]"); if(al){ openAlts(d,+al.dataset.alts); return; }
+  const ab=e.target.closest("[data-alt]"); if(ab){ const [i,a]=ab.dataset.alt.split(":"); setAlt(cur,+i,a); render(true); return; }
+  const hb=e.target.closest("[data-how]"); if(hb){ openHow(eff(d,+hb.dataset.how)); return; }
   const ph=e.target.closest("[data-z]"); if(ph){ const z=document.getElementById("zoom"); z.querySelector("img").src=IMG[ph.dataset.z]; z.classList.add("on"); return; }
   const rw=e.target.closest("[data-row]"); if(rw){ const i=+rw.dataset.row; ui.open[cur]= ui.open[cur]===i ? -1 : i; render(true); const el=document.getElementById("row"+i); if(el&&ui.open[cur]===i) el.scrollIntoView({block:"nearest"}); return; }
   const jp=e.target.closest("[data-jump]"); if(jp){ const i=+jp.dataset.jump; ui.open[cur]=i; render(true); const el=document.getElementById("row"+i); if(el) el.scrollIntoView({behavior:"smooth",block:"start"}); return; }
@@ -575,7 +621,8 @@ V.addEventListener("click",e=>{
   if(e.target.id==="save"){
     const ex=allEx(d).map((x,i)=>Array.from({length:x.s},(_,s)=>{ const v=dv(cur,i,s); return {kg:(v.kg||"").replace(",","."),r:v.r||""}; }));
     if(!ex.some(a=>a.some(x=>x.kg||x.r))){ msg("Segna almeno un carico prima di salvare."); return; }
-    store.sessions.push({date:new Date().toISOString(),day:cur,ex}); delete store.draft[cur]; ui.wi[cur]=0; Object.keys(ui.ws).forEach(k=>{ if(k.startsWith(cur+":")) delete ui.ws[k]; });
+    const alt=Object.assign({},(store.draft[cur]||{}).alt||{});
+    store.sessions.push({date:new Date().toISOString(),day:cur,ex,alt,v:2}); delete store.draft[cur]; ui.wi[cur]=0; Object.keys(ui.ws).forEach(k=>{ if(k.startsWith(cur+":")) delete ui.ws[k]; });
     const ok=persist(); render(true); setTimeout(()=>{ const m=document.getElementById("msg"); if(m) m.textContent= ok?"Seduta salvata ✓ · grafici aggiornati":"Salvata solo per ora: questo browser non permette di memorizzare i dati."; },50); return;
   }
   if(e.target.id==="del"){ const b=e.target; if(b.dataset.c){ store.sessions.pop(); persist(); render(); } else { b.dataset.c="1"; b.textContent="Tocca di nuovo per confermare"; } }
